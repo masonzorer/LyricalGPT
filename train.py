@@ -8,10 +8,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # Training Hyperparameters
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 batch_size = 2
 learning_rate = 3e-4
-eval_interval = 200
-eval_samples = 200
+eval_interval = 10
+eval_samples = 50
 
 # Transformer decoder model components
 @dataclass
@@ -19,7 +20,7 @@ class Config:
     block_size: int = 512
     vocab_size: int = 50304
     n_layer: int = 12
-    n_head: int = 12
+    n_head: int = 16
     n_embd: int = 128
     dropout: float = 0.0
 
@@ -28,9 +29,11 @@ def dataloader(config, data, batch_size):
     ix = torch.randint(len(data) - config.block_size, (batch_size,))
     x = torch.stack([torch.from_numpy((data[i:i+config.block_size]).astype(np.int64)) for i in ix])
     y = torch.stack([torch.from_numpy((data[i+1:i+1+config.block_size]).astype(np.int64)) for i in ix])
+    x = x.to(device)
+    y = y.to(device)
     return x, y
 
-# function to estimate loss
+# estimate loss
 @torch.no_grad()
 def estimate_loss(model, data, config):
     model.eval()
@@ -45,18 +48,15 @@ def estimate_loss(model, data, config):
     model.train()
     return losses.mean()
 
-
 # initialize model and data
 train = np.memmap('Data/train.bin', dtype=np.uint16, mode='r')
 val = np.memmap('Data/val.bin', dtype=np.uint16, mode='r')
 config = Config()
-decoder = model.Decoder(config)
-
-# optimizer
+decoder = model.Decoder(config).to(device)
 optimizer = torch.optim.AdamW(decoder.parameters(), lr=learning_rate)
 
 # training loop
-for i in range(1000):
+for i in range(100):
     # get a batch & forward pass
     x, y = dataloader(config, train, batch_size)
     logits = decoder(x)
@@ -65,6 +65,7 @@ for i in range(1000):
     logits = logits.view(-1, logits.size(-1))
     y = y.view(-1)
     loss = F.cross_entropy(logits, y)
+    print(loss.item())
 
     # backward pass and update
     loss.backward()
@@ -72,29 +73,19 @@ for i in range(1000):
     optimizer.zero_grad()
 
     # evaluate
-    if i % eval_interval == 0:
+    if (i+1) % eval_interval == 0:
         train_loss = estimate_loss(decoder, train, config)
         val_loss = estimate_loss(decoder, val, config)
-        print(f"Step {i}, Train loss: {train_loss}, Val loss: {val_loss}")
-
+        print(f"Step {i+1}, Train loss: {train_loss}, Val loss: {val_loss}")
 
 # generate a sample
-# x = torch.zeros((1, 1), dtype=torch.long)
-# sample = decoder.generate_sample(x, 100)
+x = torch.zeros((1, 1), dtype=torch.long)
+sample = decoder.generate_sample(x, 100)
 
-# # decode the sample
-# enc = tiktoken.get_encoding("gpt2")
-# print(enc.decode(sample[0].tolist()))
+# decode the sample
+enc = tiktoken.get_encoding("gpt2")
+print(enc.decode(sample[0].tolist()))
 
-
-
-
-
-def main():
-    train()
-
-if __name__ == "__main__":
-    main()
 
 
 
