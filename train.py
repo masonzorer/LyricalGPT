@@ -11,7 +11,7 @@ import torch.nn.functional as F
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 batch_size = 2
 learning_rate = 3e-4
-eval_interval = 10
+eval_interval = 100
 eval_samples = 50
 
 # Transformer decoder model components
@@ -19,9 +19,9 @@ eval_samples = 50
 class Config:
     block_size: int = 512
     vocab_size: int = 50304
-    n_layer: int = 12
-    n_head: int = 16
-    n_embd: int = 128
+    n_layer: int = 6
+    n_head: int = 32
+    n_embd: int = 256
     dropout: float = 0.0
 
 # dataloader for loading a batch from .bin files
@@ -55,8 +55,11 @@ config = Config()
 decoder = model.Decoder(config).to(device)
 optimizer = torch.optim.AdamW(decoder.parameters(), lr=learning_rate)
 
+# print number of parameters
+print(f"Number of parameters: {sum(p.numel() for p in decoder.parameters())}")
+
 # training loop
-for i in range(100):
+for i in range(1500):
     # get a batch & forward pass
     x, y = dataloader(config, train, batch_size)
     logits = decoder(x)
@@ -85,6 +88,9 @@ sample = decoder.generate_sample(x, 100)
 # decode the sample
 enc = tiktoken.get_encoding("gpt2")
 print(enc.decode(sample[0].tolist()))
+
+# save the model
+torch.save(decoder.state_dict(), "decoder.pth")
 
 
 
