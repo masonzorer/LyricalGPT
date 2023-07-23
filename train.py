@@ -8,19 +8,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # Training Hyperparameters
+cont = True
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-batch_size = 2
+batch_size = 6
 learning_rate = 3e-4
-eval_interval = 100
+eval_interval = 500
 eval_samples = 50
 
 # Transformer decoder model components
 @dataclass
 class Config:
-    block_size: int = 512
     vocab_size: int = 50304
+    block_size: int = 512
     n_layer: int = 6
-    n_head: int = 32
+    n_head: int = 8
     n_embd: int = 256
     dropout: float = 0.0
 
@@ -53,13 +54,16 @@ train = np.memmap('Data/train.bin', dtype=np.uint16, mode='r')
 val = np.memmap('Data/val.bin', dtype=np.uint16, mode='r')
 config = Config()
 decoder = model.Decoder(config).to(device)
+if cont:
+    decoder.load_state_dict(torch.load("decoder.pth"))
+    decoder.train()
 optimizer = torch.optim.AdamW(decoder.parameters(), lr=learning_rate)
 
 # print number of parameters
 print(f"Number of parameters: {sum(p.numel() for p in decoder.parameters())}")
 
 # training loop
-for i in range(1500):
+for i in range(3000):
     # get a batch & forward pass
     x, y = dataloader(config, train, batch_size)
     logits = decoder(x)
@@ -81,16 +85,16 @@ for i in range(1500):
         val_loss = estimate_loss(decoder, val, config)
         print(f"Step {i+1}, Train loss: {train_loss}, Val loss: {val_loss}")
 
-# generate a sample
-x = torch.zeros((1, 1), dtype=torch.long)
-sample = decoder.generate_sample(x, 100)
+        # generate a sample
+        x = torch.zeros((1, 1), dtype=torch.long)
+        sample = decoder.generate_sample(x, 100)
 
-# decode the sample
-enc = tiktoken.get_encoding("gpt2")
-print(enc.decode(sample[0].tolist()))
+        # decode the sample
+        enc = tiktoken.get_encoding("gpt2")
+        print(enc.decode(sample[0].tolist()))
 
-# save the model
-torch.save(decoder.state_dict(), "decoder.pth")
+        # save the model
+        torch.save(decoder.state_dict(), "decoder.pth")
 
 
 

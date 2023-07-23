@@ -103,6 +103,7 @@ class Decoder(nn.Module):
             # get probabilities and sample
             probs = F.softmax(logits, dim=-1)
             x_next = torch.multinomial(probs, 1)
+            #x_next = torch.argmax(probs, dim=-1, keepdim=True)
             # append the new token to the sequence
             x = torch.cat((x, x_next), dim=1)
         return x
