@@ -8,10 +8,10 @@ import tiktoken
 @dataclass
 class Config:
     vocab_size: int = 50304
-    block_size: int = 512
-    n_layer: int = 6
-    n_head: int = 8
-    n_embd: int = 256
+    block_size: int = 1024
+    n_layer: int = 12
+    n_head: int = 12
+    n_embd: int = 768
     dropout: float = 0.0
 
 def main():
@@ -19,13 +19,12 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = Config()
     decoder = model.Decoder(config).to(device)
-    decoder.load_state_dict(torch.load("decoder.pth"))
+    decoder.load_state_dict(torch.load("decoder3.pth"))
     decoder.eval()
     print("Model loaded.")
     
     # generate a sample
-    x = torch.zeros((1, 1), dtype=torch.long)
-    x = torch.randint(0, 50304, (1, 1))
+    x = torch.randint(0, 50304, (1, 1)).to(device)
     sample = decoder.generate_sample(x, 200)
     print("Sample generated.")
     
