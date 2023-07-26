@@ -14,15 +14,19 @@ class AttentionHead(nn.Module):
         self.v = nn.Linear(config.n_embd, self.head_size, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(config.block_size, config.block_size)))
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         B, T, C = x.shape
         # calculate query, key, values
+        # single head attention
         q = self.q(x)
         k = self.k(x)
         v = self.v(x)
         # compute attention scores
         att = q @ k.transpose(-2, -1) * C ** (-0.5)
         att = att.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
+        # apply attention mask
+        if mask is not None:
+            att = att.masked_fill(mask == 0, float('-inf'))
         att = F.softmax(att, dim=-1)
         # attend to values
         y = att @ v
