@@ -12,8 +12,8 @@ print(device)
 epochs = 3
 batch_size = 1
 learning_rate = 1e-5
-eval_interval = 250
-eval_samples = 100
+eval_interval = 50
+eval_samples = 10
 
 # Transformer decoder model components
 @dataclass
@@ -46,7 +46,7 @@ def estimate_loss(model, data_loader, config):
     return losses.mean()
 
 # initialize model and data
-train_set = pd.read_csv('./Data/val.csv')
+train_set = pd.read_csv('./Data/train.csv')
 val_set = pd.read_csv('./Data/val.csv')
 train_dataset = data_proc.Dataset(train_set)
 val_dataset = data_proc.Dataset(val_set)

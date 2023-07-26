@@ -26,7 +26,6 @@ class AttentionHead(nn.Module):
         att = att.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         # apply attention mask
         if mask is not None:
-            mask = mask[:, None, :].float()
             att = att.masked_fill(mask == 0, float('-inf'))
         att = F.softmax(att, dim=-1)
         # attend to values
@@ -40,8 +39,8 @@ class MultiHeadAttention(nn.Module):
         self.heads = nn.ModuleList([AttentionHead(config) for _ in range(config.n_head)])
         self.proj = nn.Linear(config.n_embd, config.n_embd)
 
-    def forward(self, x, mask=None):
-        out = torch.cat([h(x, mask) for h in self.heads], dim=-1)
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.proj(out)
         return out
 
@@ -67,8 +66,8 @@ class Block(nn.Module):
         self.ln1 = nn.LayerNorm(config.n_embd)
         self.ln2 = nn.LayerNorm(config.n_embd)
     
-    def forward(self, x, mask=None):
-        x = x + self.sa(self.ln1(x), mask)
+    def forward(self, x):
+        x = x + self.sa(self.ln1(x))
         x = x + self.ffn(self.ln2(x))
         return x
 
@@ -80,19 +79,18 @@ class Decoder(nn.Module):
         # create token and postion embeddings
         self.token_embed = nn.Embedding(config.vocab_size, config.n_embd)
         self.pos_embed = nn.Embedding(config.block_size, config.n_embd)
-        self.blocks = nn.ModuleList([Block(config) for _ in range(config.n_layer)])
+        self.blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layer)])
         self.ln = nn.LayerNorm(config.n_embd)
         self.head = nn.Linear(config.n_embd, config.vocab_size)
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         B, T = x.shape
         # embed tokens and positions
         tok_embeddings = self.token_embed(x)
         pos_embeddings = self.pos_embed(torch.arange(T, device=x.device))
         x = tok_embeddings + pos_embeddings
         # pass through transformer blocks
-        for block in self.blocks:
-            x = block(x, mask)
+        x = self.blocks(x)
         # project back to vocabulary
         x = self.head(self.ln(x))
         return x

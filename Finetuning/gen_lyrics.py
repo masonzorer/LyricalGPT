@@ -19,7 +19,7 @@ def generate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = Config()
     decoder = model.Decoder(config).to(device)
-    decoder.load_state_dict(torch.load("decoder.pth", map_location=device))
+    decoder.load_state_dict(torch.load("lyrics_gen.pth", map_location=device))
     decoder.eval()
     # initialize the tokenizer
     gpt2 = tiktoken.get_encoding("gpt2")

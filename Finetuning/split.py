@@ -2,7 +2,7 @@
 import pandas as pd
 
 # load data
-all_data = pd.read_csv('./Data/df_eng.csv', engine="pyarrow")
+all_data = pd.read_csv('./Data/all_lyrics.csv')
 
 # split data into train and val
 train_data = all_data.sample(frac=0.95, random_state=0)

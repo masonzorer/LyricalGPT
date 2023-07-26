@@ -21,8 +21,8 @@ class Dataset(torch.utils.data.Dataset):
         song = self.data.iloc[idx]
 
         # get title, genre, and lyrics
-        title = song['title']
-        genre = song['tag']
+        title = song['song']
+        genre = song['type']
         lyrics = song['lyrics']
 
         # tokenize title, genre, and lyrics and combine into one tokenized song
