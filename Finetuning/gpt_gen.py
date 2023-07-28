@@ -4,6 +4,7 @@ from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+@torch.no_grad()
 def generate():
     # set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

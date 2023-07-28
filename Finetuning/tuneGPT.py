@@ -4,11 +4,12 @@ import torch
 import pandas as pd
 import torch.nn.functional as F
 from transformers import GPT2LMHeadModel
+from transformers import get_linear_schedule_with_warmup
 
 # Training Hyperparameters
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
-epochs = 20
+epochs = 4
 batch_size = 3
 learning_rate = 1e-5
 eval_interval = 200
@@ -45,6 +46,11 @@ gpt_model = GPT2LMHeadModel.from_pretrained(model_name)
 gpt_model.to(device)
 optimizer = torch.optim.AdamW(gpt_model.parameters(), lr=learning_rate)
 
+# learning rate scheduler
+num_training_steps = len(train_loader) * epochs
+num_warmup_steps = num_training_steps // 10
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps)
+
 # print number of parameters
 num_params = sum(p.numel() for p in gpt_model.parameters() if p.requires_grad)
 
@@ -63,6 +69,10 @@ for epoch in range(epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        # update learning rate
+        scheduler.step()
+
         # print loss
         if (i+1) % eval_interval == 0:
             train_loss = estimate_loss(gpt_model, train_loader)
