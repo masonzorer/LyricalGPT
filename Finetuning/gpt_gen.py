@@ -1,12 +1,17 @@
 # generate lyrics with GPT-2 model
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def generate():
+    # set device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # load model from saved checkpoint (gpt_tuned.pth)
     print('Loading model...')
-    model = GPT2LMHeadModel.from_pretrained('gpt2')
-    model.load_state_dict(torch.load('gpt_tuned.pth'))
+    model = GPT2LMHeadModel.from_pretrained("gpt2")
+    model.load_state_dict(torch.load("gpt_tuned.pth", map_location=device))
+    model.to(device)
     model.eval()
 
     # load tokenizer
@@ -20,28 +25,33 @@ def generate():
     model_input = song_title + '\n' + song_genre + '\n\n' + song_lyrics
 
     # tokenize model input
-    tokenized_song = tokenizer.encode_plus(
+    output = tokenizer.encode_plus(
         model_input,
         return_tensors='pt'
-    )['input_ids'].flatten()
+    )
 
-    attention_mask = torch.ones_like(tokenized_song)  # Set all elements to 1
-    attention_mask[tokenized_song == tokenizer.pad_token_id] = 0
-
+    tokenized_song = output['input_ids']
+    tokenized_song = tokenized_song.to(device)
+    
     # generate lyrics
     print('Generating lyrics...')
-    generated = model.generate(
-        tokenized_song.unsqueeze(0),
-        attention_mask=attention_mask.unsqueeze(0),
-        pad_token_id=tokenizer.eos_token_id,
-        do_sample=True,
-        top_k=25,
-        max_length=1024,
-        num_return_sequences=1
-    )
-    # decode generated lyrics
-    generated = tokenizer.decode(generated[0], skip_special_tokens=True)
-    print(generated)
+    print()
+    print(model_input, end='', flush=True)
+    for i in range(900):
+        output = model(tokenized_song)
+        next_token_logits = output[0][:, -1, :]
+        # sample next token from distribution and append to generated lyrics
+        scores = torch.softmax(next_token_logits, dim=1)
+        next_token = torch.multinomial(scores, num_samples=1)
+        # update model input
+        tokenized_song = torch.cat((tokenized_song, next_token), dim=1)
+        # stop if end of song token is generated
+        if next_token.item() == tokenizer.eos_token_id:
+            break
+        # print generated lyrics to buffer immediately
+        decoded_token = tokenizer.decode(next_token.item())
+        print(decoded_token, end='', flush=True)
+    print()
 
 
 if __name__ == '__main__':

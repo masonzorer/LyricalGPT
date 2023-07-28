@@ -9,10 +9,10 @@ from transformers import GPT2LMHeadModel
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 epochs = 20
-batch_size = 1
+batch_size = 3
 learning_rate = 1e-5
-eval_interval = 1
-eval_samples = 1
+eval_interval = 200
+eval_samples = 50
 
 # estimate loss
 @torch.no_grad()
@@ -21,10 +21,11 @@ def estimate_loss(model, data_loader):
     losses = torch.zeros(eval_samples)
     for i in range(eval_samples):
         # grab a batch of data
-        x, y = next(iter(data_loader))
+        x, mask = next(iter(data_loader))
         x = x.to(device)
+        mask = mask.to(device)
         # forward pass
-        outputs = model(x, labels=x)
+        outputs = model(x, attention_mask=mask, labels=x)
         loss = outputs.loss
         losses[i] = loss.item()
     model.train()

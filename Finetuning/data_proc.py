@@ -31,7 +31,7 @@ class Dataset(torch.utils.data.Dataset):
 
         # tokenize title, genre, and lyrics and combine into one tokenized song
         if self.GPT:
-            text = title + '\n' + genre + '\n\n' + lyrics
+            text = str(title) + '\n' + str(genre) + '\n\n' + str(lyrics)
             tokenized_song = self.tokenizer.encode_plus(
                 text,
                 max_length=1024,
