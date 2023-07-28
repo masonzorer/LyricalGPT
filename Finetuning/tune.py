@@ -9,11 +9,11 @@ import torch.nn.functional as F
 # Training Hyperparameters
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
-epochs = 3
-batch_size = 1
+epochs = 20
+batch_size = 6
 learning_rate = 1e-5
-eval_interval = 50
-eval_samples = 10
+eval_interval = 250
+eval_samples = 50
 
 # Transformer decoder model components
 @dataclass
@@ -23,7 +23,7 @@ class Config:
     n_layer: int = 12
     n_head: int = 12
     n_embd: int = 768
-    dropout: float = 0.0
+    dropout: float = 0.3
 
 # estimate loss
 @torch.no_grad()
@@ -54,7 +54,7 @@ train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size,
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 config = Config()
 decoder = model.Decoder(config).to(device)
-decoder.load_state_dict(torch.load("decoder.pth", map_location=device))
+decoder.load_state_dict(torch.load("lyrics_gen6.pth", map_location=device))
 decoder.train()
 optimizer = torch.optim.AdamW(decoder.parameters(), lr=learning_rate)
 
@@ -83,4 +83,4 @@ for epoch in range(epochs):
             train_loss = estimate_loss(decoder, train_loader, config)
             val_loss = estimate_loss(decoder, val_loader, config)
             print(f"Train Loss: {train_loss}, Val Loss: {val_loss}")
-            torch.save(decoder.state_dict(), "lyrics_gen.pth")
+            torch.save(decoder.state_dict(), "lyrics_gen7.pth")

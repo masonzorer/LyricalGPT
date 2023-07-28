@@ -14,7 +14,7 @@ class AttentionHead(nn.Module):
         self.v = nn.Linear(config.n_embd, self.head_size, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(config.block_size, config.block_size)))
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         B, T, C = x.shape
         # calculate query, key, values
         # single head attention
@@ -24,9 +24,6 @@ class AttentionHead(nn.Module):
         # compute attention scores
         att = q @ k.transpose(-2, -1) * C ** (-0.5)
         att = att.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
-        # apply attention mask
-        if mask is not None:
-            att = att.masked_fill(mask == 0, float('-inf'))
         att = F.softmax(att, dim=-1)
         # attend to values
         y = att @ v
@@ -37,10 +34,12 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.heads = nn.ModuleList([AttentionHead(config) for _ in range(config.n_head)])
+        self.dropout = nn.Dropout(config.dropout)
         self.proj = nn.Linear(config.n_embd, config.n_embd)
 
     def forward(self, x):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.dropout(out)
         out = self.proj(out)
         return out
 
@@ -53,9 +52,12 @@ class FFN(nn.Module):
             nn.GELU(),
             nn.Linear(4 * config.n_embd, config.n_embd),
         )
+        self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
-        return self.net(x)
+        x = self.net(x)
+        x = self.dropout(x)
+        return x
     
 # full transformer decoder block
 class Block(nn.Module):
@@ -79,7 +81,7 @@ class Decoder(nn.Module):
         # create token and postion embeddings
         self.token_embed = nn.Embedding(config.vocab_size, config.n_embd)
         self.pos_embed = nn.Embedding(config.block_size, config.n_embd)
-        self.blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layer)])
+        self.blocks = nn.ModuleList([Block(config) for _ in range(config.n_layer)])
         self.ln = nn.LayerNorm(config.n_embd)
         self.head = nn.Linear(config.n_embd, config.vocab_size)
 
@@ -90,7 +92,8 @@ class Decoder(nn.Module):
         pos_embeddings = self.pos_embed(torch.arange(T, device=x.device))
         x = tok_embeddings + pos_embeddings
         # pass through transformer blocks
-        x = self.blocks(x)
+        for block in self.blocks:
+            x = block(x)
         # project back to vocabulary
         x = self.head(self.ln(x))
         return x

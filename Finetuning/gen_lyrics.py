@@ -2,6 +2,8 @@
 import model
 import torch
 import tiktoken
+import random
+import heapq
 from dataclasses import dataclass
 
 # Transformer decoder model components
@@ -19,7 +21,7 @@ def generate():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config = Config()
     decoder = model.Decoder(config).to(device)
-    decoder.load_state_dict(torch.load("lyrics_gen.pth", map_location=device))
+    decoder.load_state_dict(torch.load("lyrics_gen6.pth", map_location=device))
     decoder.eval()
     # initialize the tokenizer
     gpt2 = tiktoken.get_encoding("gpt2")
@@ -38,25 +40,29 @@ def generate():
     # get input from user
     title = input("Enter song title: ")
     genre = input("Enter song genre: ")
+    song = input("Enter the start of the song (if any): ")
+    genre = genre + '\n'
+    start = '\n'
     tokenized_title = enc.encode(title)
     tokenized_genre = enc.encode(genre)
-    model_input = torch.tensor([50300] + tokenized_title + [50301] + tokenized_genre + [50302]).unsqueeze(0).to(device)
+    tokenized_start = enc.encode(start)
+    tokenized_song = enc.encode(song)
+    model_input = [50300] + tokenized_title + [50301] + tokenized_genre + [50302] + tokenized_start + tokenized_song
+    model_input = torch.tensor(model_input).unsqueeze(0).to(device)
     
     # generate lyrics
-    for _ in range(128):
+    for i in range(512):
         logits = decoder(model_input)
         logits = logits[:, -1, :]
         # sample from the logits
         next_token = torch.multinomial(logits.softmax(-1), num_samples=1)
         model_input = torch.cat((model_input, next_token), dim=1)
+        print(f"Progress: {i}/512", end="\r")
         if next_token == 50303:
             break
+
     # decode the generated lyrics
     generated_lyrics = enc.decode(model_input[0].tolist())
-    generated_lyrics = generated_lyrics.replace("<|song_title|>", "")
-    generated_lyrics = generated_lyrics.replace("<|song_genre|>", "")
-    generated_lyrics = generated_lyrics.replace("<|song_lyrics|>", "")
-    generated_lyrics = generated_lyrics.replace("<|song_end|>", "")
     print(generated_lyrics)
 
 
